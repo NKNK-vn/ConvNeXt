@@ -6,10 +6,11 @@ Implementation of [A ConvNet for the 2020s](https://arxiv.org/abs/2201.03545). G
 # Todo
 
 - [x] Create repo  
-- [ ] Build base model  
-- [ ] Build data pipeline
-- [ ] Training
-- [ ] Complete overview paper and tutorial 
+- [x] Build base model (raw version)  
+- [x] Build data pipeline (raw version) 
+- [ ] Training (Pending)
+- [ ] Fix bug and complete
+- [ ] Complete overview paper(maybe slide) and documentation 
 
 
 
