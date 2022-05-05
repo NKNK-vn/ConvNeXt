@@ -1,20 +1,27 @@
 import os
 from argparse import ArgumentParser
-
+from pickletools import optimize
+import numpy as np
 #import tensorflow
 import tensorflow as tf
+from tensorflow_addons.optimizers import AdamW
 from keras_preprocessing.image import ImageDataGenerator
+
 from model import ConvNeXt
+
 import matplotlib.pyplot as plt 
 # from optimizer import CustomLearningRate
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
+from keras.optimizers import rmsprop_v2
+from keras.optimizers import adam_v2
+from keras.optimizer_v2.learning_rate_schedule import CosineDecay
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     
     # FIXME
     # Arguments users used when running command lines
-    parser.add_argument("--batch-size", default=8, type=int)
+    parser.add_argument("--batch-size", default=32, type=int)
     parser.add_argument("--epochs", default=100, type=int)
     parser.add_argument("--model-folder", default='./model/', type=str)
     parser.add_argument("--train-folder", default='./data/train', type=str)
@@ -32,7 +39,7 @@ if __name__ == "__main__":
     print('Github: https://github.com/NKNK-vn/ConvNeXt')
     print('Email: khoi.nkn12@gmail.com') #Update later
     print('---------------------------------------------------------------------')
-    print('Training MobileNet model with hyper-params:')
+    print('Training ConvNeXt model with hyper-params:')
     print('===========================')
     for i, arg in enumerate(vars(args)):
         print('{}.{}: {}'.format(i, arg, vars(args)[arg]))
@@ -43,7 +50,7 @@ if __name__ == "__main__":
     batch_size =  args.batch_size
     image_size = args.image_size
     num_classes = args.num_classes
-
+    
     #Use ImageDataGenerator for augmentation
     train_datagen = ImageDataGenerator(rotation_range=15,
                                         rescale=1./255,
@@ -72,15 +79,9 @@ if __name__ == "__main__":
         shuffle=True,
         seed=123,
     )
-    print('Train label: {}'.format(train_ds.class_indices))
-    print('Val label: {}'.format(val_ds.class_indices))
-
-    # assert args.image_size * args.image_size % ( args.patch_size * args.patch_size) == 0, 'Make sure that image-size is divisible by patch-size'
-    assert args.image_channels == 3, 'Unfortunately, model accepts jpg images with 3 channels so far'
-    assert image_size > 32, 'Unfortunately, model accepts jpg images size higher than 32'
 
     # Load model
-    convnext = ConvNeXt(image_size)
+    convnext = ConvNeXt(img_size=image_size, num_classes=num_classes)
     model = convnext.build_model()
 
     # # Create custom Optimizer
@@ -92,10 +93,16 @@ if __name__ == "__main__":
                                             factor=0.5, 
                                             min_lr=0.00001)
     checkpoint = ModelCheckpoint(filepath=args.model_folder + 'model.h5', monitor='val_accuracy', mode='max', save_best_only=True, save_weights_only=False, verbose=1)
-    callbacks = [learning_rate_reduction, checkpoint]                    
-    
+    callbacks = [checkpoint]
+
+    #Learning_rate                  
+    learning_rate = CosineDecay(initial_learning_rate=5e-5, decay_steps=1260)
+
+    # optimizer = rmsprop_v2.RMSProp(learning_rate=0.0001)
+    # optimizer = AdamW(learning_rate=5e-5, weight_decay=1e-8)        #77% without learning_rate_reduction
+    optimizer = AdamW(learning_rate=learning_rate, weight_decay=1e-8)
     #Train model
-    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
     history = model.fit(train_ds, epochs = args.epochs, callbacks=callbacks, validation_data = val_ds)
     
     #Show Model Train Loss History
